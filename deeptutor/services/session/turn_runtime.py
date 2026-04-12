@@ -5,11 +5,11 @@ Turn-level runtime manager for unified chat streaming.
 from __future__ import annotations
 
 import asyncio
+from collections.abc import AsyncIterator
 import contextlib
+from dataclasses import dataclass, field
 import json
 import logging
-from collections.abc import AsyncIterator
-from dataclasses import dataclass, field
 from typing import Any
 
 from deeptutor.core.stream import StreamEvent, StreamEventType
@@ -95,11 +95,7 @@ def _format_followup_question_context(context: dict[str, Any], language: str = "
                 option_lines.append(f"{key}. {value}")
     correctness = context.get("is_correct")
     correctness_text = (
-        "correct"
-        if correctness is True
-        else "incorrect"
-        if correctness is False
-        else "unknown"
+        "correct" if correctness is True else "incorrect" if correctness is False else "unknown"
     )
 
     lines = [
@@ -169,9 +165,7 @@ class TurnRuntimeManager:
         raw_config = dict(payload.get("config", {}) or {})
         runtime_only_keys = ("_persist_user_message", "followup_question_context")
         runtime_only_config = {
-            key: raw_config.pop(key)
-            for key in runtime_only_keys
-            if key in raw_config
+            key: raw_config.pop(key) for key in runtime_only_keys if key in raw_config
         }
         try:
             from deeptutor.capabilities.request_contracts import validate_capability_config
@@ -274,7 +268,9 @@ class TurnRuntimeManager:
             async with self._lock:
                 execution = self._executions.get(turn_id)
                 if execution is not None:
-                    execution.subscribers = [sub for sub in execution.subscribers if sub is not subscriber]
+                    execution.subscribers = [
+                        sub for sub in execution.subscribers if sub is not subscriber
+                    ]
 
     async def subscribe_session(
         self,
@@ -298,12 +294,12 @@ class TurnRuntimeManager:
         assistant_content = ""
 
         try:
+            from deeptutor.agents.notebook import NotebookAnalysisAgent
             from deeptutor.core.context import Attachment, UnifiedContext
             from deeptutor.runtime.orchestrator import ChatOrchestrator
-            from deeptutor.agents.notebook import NotebookAnalysisAgent
+            from deeptutor.services.llm.config import get_llm_config
             from deeptutor.services.memory import get_memory_service
             from deeptutor.services.notebook import notebook_manager
-            from deeptutor.services.llm.config import get_llm_config
             from deeptutor.services.session.context_builder import ContextBuilder
 
             request_config = dict(payload.get("config", {}) or {})
@@ -341,11 +337,15 @@ class TurnRuntimeManager:
 
             llm_config = get_llm_config()
             builder = ContextBuilder(self.store)
+
+            async def emit_stream_event(event: StreamEvent) -> None:
+                await self._persist_and_publish(execution, event)
+
             history_result = await builder.build(
                 session_id=session_id,
                 llm_config=llm_config,
                 language=payload.get("language", "en"),
-                on_event=lambda event: self._persist_and_publish(execution, event),
+                on_event=emit_stream_event,
             )
             memory_service = get_memory_service()
             memory_context = memory_service.build_memory_context()
@@ -359,7 +359,7 @@ class TurnRuntimeManager:
                     notebook_context = await analysis_agent.analyze(
                         user_question=raw_user_content,
                         records=referenced_records,
-                        emit=lambda event: self._persist_and_publish(execution, event),
+                        emit=emit_stream_event,
                     )
 
             if history_references:
@@ -382,7 +382,9 @@ class TurnRuntimeManager:
                     if not transcript_lines:
                         continue
 
-                    history_summary = str(history_session.get("compressed_summary", "") or "").strip()
+                    history_summary = str(
+                        history_session.get("compressed_summary", "") or ""
+                    ).strip()
                     if not history_summary:
                         history_summary = _clip_text(
                             " ".join(
@@ -417,7 +419,7 @@ class TurnRuntimeManager:
                     history_context = await analysis_agent.analyze(
                         user_question=raw_user_content,
                         records=history_records,
-                        emit=lambda event: self._persist_and_publish(execution, event),
+                        emit=emit_stream_event,
                     )
 
             effective_user_message = raw_user_content
