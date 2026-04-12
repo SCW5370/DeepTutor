@@ -10,13 +10,13 @@ Memory is shared across all bots via ``data/memory/``.
 from __future__ import annotations
 
 import asyncio
+import logging
+import shutil
+import sys
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from datetime import datetime
-import logging
 from pathlib import Path
-import shutil
-import sys
 from typing import Any
 
 import yaml
@@ -127,13 +127,9 @@ class TutorBotManager:
                     shutil.copytree(skill_dir, target)
                     copied += 1
                 except Exception:
-                    logger.exception(
-                        "Failed to copy skill '%s' for bot '%s'", skill_dir.name, bot_id
-                    )
+                    logger.exception("Failed to copy skill '%s' for bot '%s'", skill_dir.name, bot_id)
         if copied:
-            logger.info(
-                "Seeded %d skills for bot '%s' from %s", copied, bot_id, _BUILTIN_SKILLS_DIR
-            )
+            logger.info("Seeded %d skills for bot '%s' from %s", copied, bot_id, _BUILTIN_SKILLS_DIR)
 
     def _seed_templates(self, bot_id: str) -> None:
         """Copy per-bot template files into the bot's workspace if absent."""
@@ -236,10 +232,10 @@ class TutorBotManager:
             config = BotConfig(name=bot_id)
             self._save_bot_config(bot_id, config)
 
-        from deeptutor.tutorbot.agent.loop import AgentLoop
-        from deeptutor.tutorbot.bus.queue import MessageBus
-        from deeptutor.tutorbot.config.schema import ExecToolConfig
         from deeptutor.tutorbot.providers.deeptutor_adapter import create_deeptutor_provider
+        from deeptutor.tutorbot.bus.queue import MessageBus
+        from deeptutor.tutorbot.agent.loop import AgentLoop
+        from deeptutor.tutorbot.config.schema import ExecToolConfig
         from deeptutor.tutorbot.session.manager import SessionManager
 
         provider = create_deeptutor_provider()
@@ -281,8 +277,7 @@ class TutorBotManager:
                 if channel_manager.channels:
                     logger.info(
                         "Channels enabled for bot '%s': %s",
-                        bot_id,
-                        list(channel_manager.channels.keys()),
+                        bot_id, list(channel_manager.channels.keys()),
                     )
                 else:
                     logger.info("No channels matched config for bot '%s'", bot_id)
@@ -300,8 +295,7 @@ class TutorBotManager:
 
         # -- Core tasks -------------------------------------------------------
         loop_task = asyncio.create_task(
-            agent_loop.run(),
-            name=f"tutorbot:{bot_id}:loop",
+            agent_loop.run(), name=f"tutorbot:{bot_id}:loop",
         )
         router_task = asyncio.create_task(
             self._outbound_router(bot_id, bus, instance),
@@ -313,8 +307,7 @@ class TutorBotManager:
         if channel_manager:
             for ch_name, ch in channel_manager.channels.items():
                 ch_task = asyncio.create_task(
-                    ch.start(),
-                    name=f"tutorbot:{bot_id}:ch:{ch_name}",
+                    ch.start(), name=f"tutorbot:{bot_id}:ch:{ch_name}",
                 )
                 instance.tasks.append(ch_task)
 
@@ -323,10 +316,8 @@ class TutorBotManager:
 
         async def _hb_execute(tasks_summary: str) -> str:
             return await agent_loop.process_direct(
-                tasks_summary,
-                session_key=canonical_key,
-                channel="web",
-                chat_id="web",
+                tasks_summary, session_key=canonical_key,
+                channel="web", chat_id="web",
             )
 
         async def _hb_notify(response: str) -> None:
@@ -371,9 +362,7 @@ class TutorBotManager:
                         try:
                             await channel.send(msg)
                         except Exception:
-                            logger.exception(
-                                "Failed to send to channel %s for bot %s", msg.channel, bot_id
-                            )
+                            logger.exception("Failed to send to channel %s for bot %s", msg.channel, bot_id)
                         if not is_progress and msg.chat_id:
                             instance.channel_bindings[msg.channel] = msg.chat_id
 
@@ -383,20 +372,18 @@ class TutorBotManager:
 
                 # 3. Publish to EventBus
                 if not is_progress:
-                    await event_bus.publish(
-                        Event(
-                            type=EventType.CAPABILITY_COMPLETE,
-                            task_id=f"tutorbot:{bot_id}:{msg.channel}:{msg.chat_id}",
-                            user_input="",
-                            agent_output=msg.content or "",
-                            metadata={
-                                "source": "tutorbot",
-                                "bot_id": bot_id,
-                                "channel": msg.channel,
-                                "chat_id": msg.chat_id,
-                            },
-                        )
-                    )
+                    await event_bus.publish(Event(
+                        type=EventType.CAPABILITY_COMPLETE,
+                        task_id=f"tutorbot:{bot_id}:{msg.channel}:{msg.chat_id}",
+                        user_input="",
+                        agent_output=msg.content or "",
+                        metadata={
+                            "source": "tutorbot",
+                            "bot_id": bot_id,
+                            "channel": msg.channel,
+                            "chat_id": msg.chat_id,
+                        },
+                    ))
         except asyncio.CancelledError:
             return
         except Exception:
@@ -489,9 +476,7 @@ class TutorBotManager:
             return []
 
         all_messages: list[dict[str, Any]] = []
-        for path in sorted(
-            sessions_dir.glob("*.jsonl"), key=lambda p: p.stat().st_mtime, reverse=True
-        ):
+        for path in sorted(sessions_dir.glob("*.jsonl"), key=lambda p: p.stat().st_mtime, reverse=True):
             try:
                 with open(path, encoding="utf-8") as f:
                     for line in f:
@@ -545,19 +530,13 @@ class TutorBotManager:
 
             cfg = self._load_bot_config(bid)
             instance = self._bots.get(bid)
-            bot_activity.append(
-                (
-                    mtime,
-                    bid,
-                    {
-                        "bot_id": bid,
-                        "name": cfg.name if cfg else bid,
-                        "running": instance.running if instance else False,
-                        "last_message": last_msg[:200] if last_msg else "",
-                        "updated_at": datetime.fromtimestamp(mtime).isoformat(),
-                    },
-                )
-            )
+            bot_activity.append((mtime, bid, {
+                "bot_id": bid,
+                "name": cfg.name if cfg else bid,
+                "running": instance.running if instance else False,
+                "last_message": last_msg[:200] if last_msg else "",
+                "updated_at": datetime.fromtimestamp(mtime).isoformat(),
+            }))
 
         bot_activity.sort(key=lambda x: x[0], reverse=True)
         return [item[2] for item in bot_activity[:limit]]
@@ -597,18 +576,13 @@ class TutorBotManager:
                 ch = instance.channel_manager.get_channel(ch_name)
                 if ch:
                     try:
-                        await ch.send(
-                            OutboundMessage(
-                                channel=ch_name,
-                                chat_id=ch_chat_id,
-                                content=response,
-                            )
-                        )
+                        await ch.send(OutboundMessage(
+                            channel=ch_name, chat_id=ch_chat_id, content=response,
+                        ))
                     except Exception:
                         logger.exception(
                             "Failed to forward web reply to channel %s for bot %s",
-                            ch_name,
-                            bot_id,
+                            ch_name, bot_id,
                         )
 
         return response
@@ -706,60 +680,40 @@ class TutorBotManager:
 
     def _seed_default_souls(self) -> None:
         defaults = [
-            {
-                "id": "default-tutorbot",
-                "name": "Default TutorBot",
-                "content": (
-                    "# Soul Profile\n\nYou are TutorBot, a learning companion for students.\n\n"
-                    "## Personality\n\n- Friendly and patient\n- Clear and encouraging communication\n"
-                    "- Adapt explanation depth to the learner's level\n\n"
-                    "## Values\n\n- Accuracy over speed\n- Respect privacy and safety boundaries\n- Be transparent about uncertainty"
-                ),
-            },
-            {
-                "id": "math-tutor",
-                "name": "Math Tutor",
-                "content": (
-                    "# Soul Profile\n\nYou are a math tutor who breaks complex problems into executable steps.\n\n"
-                    "## Personality\n\n- Patient, rigorous, step-by-step\n- Encourage showing derivation process\n"
-                    "- Build confidence through structured progress\n\n"
-                    "## Teaching Style\n\n- Explain strategy before calculation details\n"
-                    "- Use visual intuition when needed\n- Always verify final results"
-                ),
-            },
-            {
-                "id": "coding-assistant",
-                "name": "Coding Assistant",
-                "content": (
-                    "# Soul Profile\n\nYou are a coding assistant focused on readable, testable, maintainable code.\n\n"
-                    "## Personality\n\n- Detail-oriented and pragmatic\n"
-                    "- Explain trade-offs when proposing solutions\n\n"
-                    "## Working Style\n\n- Understand requirements and context before changes\n"
-                    "- Provide test suggestions with code updates\n- Prefer stable and maintainable patterns"
-                ),
-            },
-            {
-                "id": "research-helper",
-                "name": "Research Assistant",
-                "content": (
-                    "# Soul Profile\n\nYou are a research assistant who helps users explore topics systematically.\n\n"
-                    "## Personality\n\n- Curious, comprehensive, evidence-driven\n"
-                    "- Provide multi-angle analysis when possible\n\n"
-                    "## Working Style\n\n- Decompose big questions into subquestions\n"
-                    "- Distinguish confirmed facts from open hypotheses\n- Provide next-step reading and search suggestions"
-                ),
-            },
-            {
-                "id": "language-tutor",
-                "name": "Language Tutor",
-                "content": (
-                    "# Soul Profile\n\nYou are a language tutor who improves expression in real contexts.\n\n"
-                    "## Personality\n\n- Supportive and patient with corrections\n"
-                    "- Adjust difficulty dynamically to learner level\n\n"
-                    "## Teaching Style\n\n- Give natural expressions first, then explain rules\n"
-                    "- Use contextual examples and avoid rigid lists\n- Encourage continuous speaking/writing practice"
-                ),
-            },
+            {"id": "default-tutorbot", "name": "Default TutorBot", "content": (
+                "# Soul Profile\n\nYou are TutorBot, a learning companion for students.\n\n"
+                "## Personality\n\n- Friendly and patient\n- Clear and encouraging communication\n"
+                "- Adapt explanation depth to the learner's level\n\n"
+                "## Values\n\n- Accuracy over speed\n- Respect privacy and safety boundaries\n- Be transparent about uncertainty"
+            )},
+            {"id": "math-tutor", "name": "Math Tutor", "content": (
+                "# Soul Profile\n\nYou are a math tutor who breaks complex problems into executable steps.\n\n"
+                "## Personality\n\n- Patient, rigorous, step-by-step\n- Encourage showing derivation process\n"
+                "- Build confidence through structured progress\n\n"
+                "## Teaching Style\n\n- Explain strategy before calculation details\n"
+                "- Use visual intuition when needed\n- Always verify final results"
+            )},
+            {"id": "coding-assistant", "name": "Coding Assistant", "content": (
+                "# Soul Profile\n\nYou are a coding assistant focused on readable, testable, maintainable code.\n\n"
+                "## Personality\n\n- Detail-oriented and pragmatic\n"
+                "- Explain trade-offs when proposing solutions\n\n"
+                "## Working Style\n\n- Understand requirements and context before changes\n"
+                "- Provide test suggestions with code updates\n- Prefer stable and maintainable patterns"
+            )},
+            {"id": "research-helper", "name": "Research Assistant", "content": (
+                "# Soul Profile\n\nYou are a research assistant who helps users explore topics systematically.\n\n"
+                "## Personality\n\n- Curious, comprehensive, evidence-driven\n"
+                "- Provide multi-angle analysis when possible\n\n"
+                "## Working Style\n\n- Decompose big questions into subquestions\n"
+                "- Distinguish confirmed facts from open hypotheses\n- Provide next-step reading and search suggestions"
+            )},
+            {"id": "language-tutor", "name": "Language Tutor", "content": (
+                "# Soul Profile\n\nYou are a language tutor who improves expression in real contexts.\n\n"
+                "## Personality\n\n- Supportive and patient with corrections\n"
+                "- Adjust difficulty dynamically to learner level\n\n"
+                "## Teaching Style\n\n- Give natural expressions first, then explain rules\n"
+                "- Use contextual examples and avoid rigid lists\n- Encourage continuous speaking/writing practice"
+            )},
         ]
         self._save_souls(defaults)
 
@@ -779,9 +733,7 @@ class TutorBotManager:
         self._save_souls(souls)
         return entry
 
-    def update_soul(
-        self, soul_id: str, name: str | None, content: str | None
-    ) -> dict[str, str] | None:
+    def update_soul(self, soul_id: str, name: str | None, content: str | None) -> dict[str, str] | None:
         souls = self._load_souls()
         for s in souls:
             if s.get("id") == soul_id:
