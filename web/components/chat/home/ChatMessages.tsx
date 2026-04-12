@@ -20,6 +20,7 @@ import AssistantResponse from "@/components/common/AssistantResponse";
 import type { MessageRequestSnapshot } from "@/context/UnifiedChatContext";
 import { extractMathAnimatorResult } from "@/lib/math-animator-types";
 import { extractQuizQuestions } from "@/lib/quiz-types";
+import { extractVisualizeResult } from "@/lib/visualize-types";
 import type { StreamEvent } from "@/lib/unified-ws";
 import { hasVisibleMarkdownContent } from "@/lib/markdown-display";
 import { CallTracePanel } from "./TracePanels";
@@ -31,6 +32,10 @@ const MathAnimatorViewer = dynamic(
 const QuizViewer = dynamic(() => import("@/components/quiz/QuizViewer"), { ssr: false });
 const ResearchOutlineEditor = dynamic(
   () => import("@/components/research/ResearchOutlineEditor"),
+  { ssr: false },
+);
+const VisualizationViewer = dynamic(
+  () => import("@/components/visualize/VisualizationViewer"),
   { ssr: false },
 );
 
@@ -53,15 +58,13 @@ interface NotebookReferenceGroup {
   count: number;
 }
 
-function getModeBadgeLabel(
-  t: (key: string, options?: Record<string, unknown>) => string,
-  capability?: string | null,
-) {
-  if (!capability || capability === "chat") return t("Chat");
-  if (capability === "deep_solve") return t("Deep Solve");
-  if (capability === "deep_question") return t("Quiz Generation");
-  if (capability === "deep_research") return t("Deep Research");
-  if (capability === "math_animator") return t("Math Animator");
+function getModeBadgeLabel(capability?: string | null) {
+  if (!capability || capability === "chat") return "Chat";
+  if (capability === "deep_solve") return "Deep Solve";
+  if (capability === "deep_question") return "Quiz Generation";
+  if (capability === "deep_research") return "Deep Research";
+  if (capability === "math_animator") return "Math Animator";
+  if (capability === "visualize") return "Visualize";
   return capability;
 }
 
@@ -111,6 +114,11 @@ const AssistantMessage = memo(function AssistantMessage({
     return extractMathAnimatorResult(resultEvent.metadata);
   }, [msg.capability, resultEvent]);
 
+  const visualizeResult = useMemo(() => {
+    if (msg.capability !== "visualize" || !resultEvent) return null;
+    return extractVisualizeResult(resultEvent.metadata);
+  }, [msg.capability, resultEvent]);
+
   return (
     <>
       {hasCallTrace ? (
@@ -125,6 +133,8 @@ const AssistantMessage = memo(function AssistantMessage({
         />
       ) : mathAnimatorResult ? (
         <MathAnimatorViewer result={mathAnimatorResult} />
+      ) : visualizeResult ? (
+        <VisualizationViewer result={visualizeResult} />
       ) : quizQuestions && quizQuestions.length > 0 ? (
         <QuizViewer questions={quizQuestions} sessionId={sessionId} language={language} />
       ) : (
@@ -315,7 +325,7 @@ export function ChatMessageList({
               <div className="max-w-[75%] space-y-1.5">
                 <div className="flex justify-end pr-1">
                   <span className="text-[10px] tracking-wide text-[var(--muted-foreground)]">
-                    {getModeBadgeLabel(t, msg.capability)}
+                    {getModeBadgeLabel(msg.capability)}
                   </span>
                 </div>
                 {msg.attachments?.some((a) => a.type === "image") && (
