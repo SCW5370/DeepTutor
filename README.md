@@ -1,3 +1,5 @@
+> **Fork context:** This is a fork of [HKUDS/DeepTutor](https://github.com/HKUDS/DeepTutor). The implementation and documentation below belong to the upstream project; this fork is not presented as my original work.
+
 <div align="center">
 
 <img src="assets/logo-ver2.png" alt="DeepTutor" width="140" style="border-radius: 15px;">
