@@ -1,4 +1,5 @@
-> **Fork context:** This is a fork of [HKUDS/DeepTutor](https://github.com/HKUDS/DeepTutor). The implementation and documentation below belong to the upstream project; this fork is not presented as my original work.
+> [!IMPORTANT]
+> **Research fork for agent-native learning systems.** I keep this fork to study how DeepTutor combines persistent tutors, knowledge bases, guided learning and multi-mode agents. It is not an independent SCW5370 product or a rebranded distribution. Use the official [HKUDS/DeepTutor](https://github.com/HKUDS/DeepTutor) repository for installation, releases and support; the implementation and documentation below belong to its upstream maintainers.
 
 <div align="center">
 
